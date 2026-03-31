@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>Untitled</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+
+  <body>
+    
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ārogya · Living Wellness Companion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,600&family=Noto+Sans:wght@300;400;500&family=Noto+Sans+Devanagari:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<!-- Fallback audio elements -->
+<audio id="audio-om"   preload="auto" style="display:none"><source src="https://cdn.freesound.org/previews/561/561598_7107935-lq.mp3" type="audio/mpeg"></audio>
+<audio id="audio-bell" preload="auto" style="display:none"><source src="https://cdn.freesound.org/previews/411/411642_5121236-lq.mp3" type="audio/mpeg"></audio>
+
+<!-- ═══════════════════════════════════════════════════════
+     ACTIVITY EDITOR MODAL
+     Slides up as a bottom sheet. Handles add + edit + delete.
+     ═══════════════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="activityModal" onclick="closeModalBackdrop(event)">
+  <div class="modal-sheet" id="modalSheet">
+    <div class="modal-handle"></div>
+
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Add activity</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+
+    <!-- Activity type picker -->
+    <div class="modal-section-label">What kind of activity?</div>
+    <div class="act-type-grid" id="actTypeGrid">
+      <!-- populated by renderActivityTypeGrid() in JS -->
+    </div>
+
+    <!-- Custom name field — shown only for 'custom' type -->
+    <div id="customNameWrap" style="display:none; margin-bottom:0">
+      <div class="modal-section-label">Activity name</div>
+      <input class="modal-input" id="customNameInput" type="text" placeholder="e.g. Study, Reading, Hobby…" maxlength="40"/>
+    </div>
+
+    <!-- Time pickers -->
+    <div class="modal-section-label">Time</div>
+    <div class="time-row">
+      <div class="time-picker-wrap">
+        <label class="time-label">Start</label>
+        <input class="time-input" id="actStartTime" type="time" value="07:00"/>
+      </div>
+      <div class="time-divider">→</div>
+      <div class="time-picker-wrap">
+        <label class="time-label">End</label>
+        <input class="time-input" id="actEndTime" type="time" value="07:30"/>
+      </div>
+    </div>
+
+    <!-- Reminder -->
+    <div class="modal-section-label">Reminder</div>
+    <div class="modal-reminder-row">
+      <div class="reminder-info">
+        <div class="reminder-title">Sound + teaching at start time</div>
+        <div class="reminder-sub">A tradition-specific verse plays when the time arrives</div>
+      </div>
+      <div class="toggle on" id="reminderToggle" onclick="this.classList.toggle('on')"></div>
+    </div>
+
+    <!-- Intention note -->
+    <div class="modal-section-label">Intention <span style="font-weight:400;color:var(--mu)">(optional)</span></div>
+    <textarea class="modal-textarea" id="actNotes" placeholder="What do you intend to bring to this time?"></textarea>
+
+    <!-- Live spiritual content preview -->
+    <div class="modal-section-label">Spiritual note for this activity</div>
+    <div class="modal-preview" id="modalPreview">
+      <div style="color:var(--mu);font-size:12px;font-style:italic">Choose an activity type above to see the teaching</div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="modal-delete-btn" id="modalDeleteBtn" onclick="deleteActivity()">Delete</button>
+      <button class="modal-save-btn"   onclick="saveActivity()">Save ✦</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     REMINDER TOAST — fires when a scheduled time arrives
+     ═══════════════════════════════════════════════════════ -->
+<div class="reminder-toast" id="reminderToast">
+  <div class="toast-inner">
+    <div class="toast-icon" id="toastIcon">🌿</div>
+    <div class="toast-body">
+      <div class="toast-activity"  id="toastActivity">Meditation</div>
+      <div class="toast-time"      id="toastTime">7:00 AM</div>
+      <div class="toast-teaching"  id="toastTeaching"></div>
+    </div>
+    <button class="toast-dismiss" onclick="dismissToast()">✕</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     APP SHELL
+     ═══════════════════════════════════════════════════════ -->
+<div class="app" id="app">
+
+  <div class="status-bar">
+    <span id="statusTime">9:41 AM</span>
+    <span>Ārogya</span>
+    <span id="connStatus">▲ ◆◆◆</span>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       ONBOARDING OVERLAY
+       ═══════════════════════════════════════════════════════ -->
+  <div class="onboard-overlay" id="onboard">
+    <div class="ob-hero">
+      <span class="ob-om">ॐ</span>
+      <h1 class="ob-title">Welcome to Ārogya</h1>
+      <p class="ob-sub">Your living wellness companion — rooted in Ayurveda, Mindfulness, and the Plum Village tradition</p>
+    </div>
+    <div class="ob-progress" id="ob-progress">
+      <div class="ob-dot active" id="od0"></div><div class="ob-dot" id="od1"></div>
+      <div class="ob-dot" id="od2"></div><div class="ob-dot" id="od3"></div>
+      <div class="ob-dot" id="od4"></div><div class="ob-dot" id="od5"></div>
+      <div class="ob-dot" id="od6"></div><div class="ob-dot" id="od7"></div>
+    </div>
+
+    <!-- Step 0: Name -->
+    <div class="ob-step active" id="os0">
+      <h2 class="ob-q">What is your name?</h2>
+      <p class="ob-hint">Ārogya will address you personally throughout your day</p>
+      <input class="ob-input" id="ob-name" type="text" placeholder="Your name…" autocomplete="off"/>
+      <button class="ob-next-btn" onclick="obNext(0)">Continue →</button>
+    </div>
+
+    <!-- Step 1: Intentions MULTI -->
+    <div class="ob-step" id="os1">
+      <h2 class="ob-q">What brings you to Ārogya?</h2>
+      <p class="ob-hint">Select all that apply — your intentions shape everything the app offers</p>
+      <div class="ob-options multi" id="intentions-group">
+        <div class="ob-opt" onclick="obMultiToggle(this,'intentions')"><span class="ob-opt-icon">🌿</span><div><div class="ob-opt-title">Reduce stress and anxiety</div><div class="ob-opt-sub">Find calm, sleep better, feel less overwhelmed</div></div><span class="ob-check">✓</span></div>
+        <div class="ob-opt" onclick="obMultiToggle(this,'intentions')"><span class="ob-opt-icon">🧘</span><div><div class="ob-opt-title">Deepen my spiritual practice</div><div class="ob-opt-sub">Daily sadhana, wisdom traditions, higher connection</div></div><span class="ob-check">✓</span></div>
+        <div class="ob-opt" onclick="obMultiToggle(this,'intentions')"><span class="ob-opt-icon">💪</span><div><div class="ob-opt-title">Improve physical health</div><div class="ob-opt-sub">Better digestion, energy, sleep, and body awareness</div></div><span class="ob-check">✓</span></div>
+        <div class="ob-opt" onclick="obMultiToggle(this,'intentions')"><span class="ob-opt-icon">🎯</span><div><div class="ob-opt-title">Build mindful daily habits</div><div class="ob-opt-sub">Consistent morning routine, journaling, focused work</div></div><span class="ob-check">✓</span></div>
+        <div class="ob-opt" onclick="obMultiToggle(this,'intentions')"><span class="ob-opt-icon">🌙</span><div><div class="ob-opt-title">Improve sleep quality</div><div class="ob-opt-sub">Wind-down rituals, Yoga Nidra, better rest</div></div><span class="ob-check">✓</span></div>
+      </div>
+      <div class="ob-selection-count" id="intentions-count">Select at least one</div>
+      <button class="ob-next-btn" onclick="obNext(1)">Continue →</button>
+      <span class="ob-back" onclick="obBack(1)">← Back</span>
+    </div>
+
+    <!-- Step 2: Traits MULTI -->
+    <div class="ob-step" id="os2">
+      <h2 class="ob-q">How would you describe your mind and emotions?</h2>
+      <p class="ob-hint">Select all that feel true — you can be many things at once</p>
+      <div class="ob-options multi" id="traits-group">
+        <div class="ob-opt" onclick="obMultiToggle(this,'traits')"><span class="ob-opt-icon">🌀</span><div><div class="ob-opt-title">Overthinker / anxious</div><div class="ob-opt-sub">Mind races, worry about future, easily scattered</div></div><span class="ob-check">✓</span></div>
+        <div class="ob-opt" onclick="obMultiToggle(this,'traits')"><span class="ob-opt-icon">☀</span><div><div class="ob-opt-title">Generally calm</div><div class="ob-opt-sub">Steady, patient, resilient under pressure</div></div><span class="ob-check">✓</span></div>
+        <div class="ob-opt" onclick="obMultiToggle(this,'traits')"><span class="ob-opt-icon">⚡</span><div><div class="ob-opt-title">Driven and intense</div><div class="ob-opt-sub">Goal-oriented, high standards, can get irritable</div></div><span class="ob-check">✓</span></div>
+        <div class="ob-opt" onclick="obMultiToggle(this,'traits')"><span class="ob-opt-icon">💧</span><div><div class="ob-opt-title">Sensitive and emotional</div><div class="ob-opt-sub">Deep feeler, affected by others, rich inner life</div></div><span class="ob-check">✓</span></div>
+        <div class="ob-opt" onclick="obMultiToggle(this,'traits')"><span class="ob-opt-icon">🌊</span><div><div class="ob-opt-title">Slow to start but steady</div><div class="ob-opt-sub">Builds momentum slowly, loyal, resistant to change</div></div><span class="ob-check">✓</span></div>
+        <div class="ob-opt" onclick="obMultiToggle(this,'traits')"><span class="ob-opt-icon">🌫</span><div><div class="ob-opt-title">Often foggy or fatigued</div><div class="ob-opt-sub">Hard to focus, low motivation, brain fog</div></div><span class="ob-check">✓</span></div>
+      </div>
+      <div class="ob-selection-count" id="traits-count">Select all that apply</div>
+      <button class="ob-next-btn" onclick="obNext(2)">Continue →</button>
+      <span class="ob-back" onclick="obBack(2)">← Back</span>
+    </div>
+
+    <!-- Step 3: Body type SINGLE -->
+    <div class="ob-step" id="os3">
+      <h2 class="ob-q">How would you describe your body type?</h2>
+      <p class="ob-hint">Choose the one that feels most like you — be honest, not aspirational</p>
+      <div class="ob-options single" id="bodytype-group">
+        <div class="ob-opt" onclick="obSingleSelect(this,'bodytype'); obScore('vata',3)"><span class="ob-opt-icon">🌬</span><div><div class="ob-opt-title">Thin, light, dry skin, cold hands</div><div class="ob-opt-sub">Irregular appetite, variable energy, creative and restless</div></div></div>
+        <div class="ob-opt" onclick="obSingleSelect(this,'bodytype'); obScore('pitta',3)"><span class="ob-opt-icon">🔥</span><div><div class="ob-opt-title">Medium build, warm body, sharp features</div><div class="ob-opt-sub">Strong appetite, sharp mind, determined and intense</div></div></div>
+        <div class="ob-opt" onclick="obSingleSelect(this,'bodytype'); obScore('kapha',3)"><span class="ob-opt-icon">🌍</span><div><div class="ob-opt-title">Larger or solid build, smooth or oily skin</div><div class="ob-opt-sub">Steady energy, calm nature, slow digestion</div></div></div>
+        <div class="ob-opt" onclick="obSingleSelect(this,'bodytype'); obScore('vata',2); obScore('pitta',2)"><span class="ob-opt-icon">💨</span><div><div class="ob-opt-title">Mix of thin and medium — variable</div><div class="ob-opt-sub">Can shift, in-between builds, changeable</div></div></div>
+      </div>
+      <button class="ob-next-btn" onclick="obNext(3)">Continue →</button>
+      <span class="ob-back" onclick="obBack(3)">← Back</span>
+    </div>
+
+    <!-- Step 4: Sleep + digestion SINGLE -->
+    <div class="ob-step" id="os4">
+      <h2 class="ob-q">How is your digestion and sleep?</h2>
+      <p class="ob-hint">Key indicators of your doshic nature — be honest</p>
+      <div class="ob-options single" id="sleepdig-group">
+        <div class="ob-opt" onclick="obSingleSelect(this,'sleepdig'); obScore('vata',3)"><span class="ob-opt-icon">🌙</span><div><div class="ob-opt-title">Light sleeper, irregular digestion, gas or bloating</div><div class="ob-opt-sub">Wake easily, variable appetite, mind active at night</div></div></div>
+        <div class="ob-opt" onclick="obSingleSelect(this,'sleepdig'); obScore('pitta',3)"><span class="ob-opt-icon">🔆</span><div><div class="ob-opt-title">Moderate sleep, wake sharp, strong digestion</div><div class="ob-opt-sub">Can feel hot at night, occasional acid or heartburn</div></div></div>
+        <div class="ob-opt" onclick="obSingleSelect(this,'sleepdig'); obScore('kapha',3)"><span class="ob-opt-icon">🐢</span><div><div class="ob-opt-title">Heavy sleeper, hard to wake, slow digestion</div><div class="ob-opt-sub">Sleep long, feel groggy, digest slowly</div></div></div>
+      </div>
+      <button class="ob-next-btn" onclick="obNext(4)">Continue →</button>
+      <span class="ob-back" onclick="obBack(4)">← Back</span>
+    </div>
+
+    <!-- Step 5: Stress SINGLE -->
+    <div class="ob-step" id="os5">
+      <h2 class="ob-q">Under stress, you tend to…</h2>
+      <p class="ob-hint">Stress reveals your Vikruti — your current imbalance</p>
+      <div class="ob-options single" id="stress-group">
+        <div class="ob-opt" onclick="obSingleSelect(this,'stress'); obScore('vata',3)"><span class="ob-opt-icon">🌀</span><div><div class="ob-opt-title">Worry, overthink, feel scattered and anxious</div><div class="ob-opt-sub">Mind races, lose routine, feel ungrounded or fearful</div></div></div>
+        <div class="ob-opt" onclick="obSingleSelect(this,'stress'); obScore('pitta',3)"><span class="ob-opt-icon">💢</span><div><div class="ob-opt-title">Get angry, frustrated, critical, overwork</div><div class="ob-opt-sub">Push harder, become irritable, feel inflamed and driven</div></div></div>
+        <div class="ob-opt" onclick="obSingleSelect(this,'stress'); obScore('kapha',3)"><span class="ob-opt-icon">😶</span><div><div class="ob-opt-title">Withdraw, eat more, feel lethargic or stuck</div><div class="ob-opt-sub">Retreat inward, feel heavy, lose motivation</div></div></div>
+        <div class="ob-opt" onclick="obSingleSelect(this,'stress'); obScore('vata',2); obScore('pitta',2)"><span class="ob-opt-icon">⚡</span><div><div class="ob-opt-title">Anxious AND frustrated — both at once</div><div class="ob-opt-sub">Overthink and then get irritable about overthinking</div></div></div>
+      </div>
+      <button class="ob-next-btn" onclick="obNext(5)">Continue →</button>
+      <span class="ob-back" onclick="obBack(5)">← Back</span>
+    </div>
+
+    <!-- Step 6: Dosha MULTI -->
+    <div class="ob-step" id="os6">
+      <h2 class="ob-q">Which dosha(s) feel most like you?</h2>
+      <p class="ob-hint">You can select one or a combination — many people are dual-doshic</p>
+      <div class="dosha-multi-grid" id="dosha-select-group">
+        <div class="dosha-card" data-dosha="vata" onclick="obDoshaToggle(this)"><div class="dosha-card-inner"><span class="dosha-icon">🌬</span><div class="dosha-name">Vata</div><div class="dosha-qualities">Air · Ether</div><div class="dosha-traits">Creative · Quick · Anxious</div></div><span class="dosha-check">✓</span></div>
+        <div class="dosha-card" data-dosha="pitta" onclick="obDoshaToggle(this)"><div class="dosha-card-inner"><span class="dosha-icon">🔥</span><div class="dosha-name">Pitta</div><div class="dosha-qualities">Fire · Water</div><div class="dosha-traits">Focused · Sharp · Intense</div></div><span class="dosha-check">✓</span></div>
+        <div class="dosha-card" data-dosha="kapha" onclick="obDoshaToggle(this)"><div class="dosha-card-inner"><span class="dosha-icon">🌍</span><div class="dosha-name">Kapha</div><div class="dosha-qualities">Earth · Water</div><div class="dosha-traits">Calm · Steady · Loyal</div></div><span class="dosha-check">✓</span></div>
+      </div>
+      <div class="dosha-combo-display" id="dosha-combo-display">Your combination will appear here</div>
+      <p class="ob-hint" style="margin-top:8px">Not sure? We calculated a suggestion from your previous answers.</p>
+      <button class="ob-next-btn" onclick="obNext(6)">Continue →</button>
+      <span class="ob-back" onclick="obBack(6)">← Back</span>
+    </div>
+
+    <!-- Step 7: Tradition SINGLE STRICT -->
+    <div class="ob-step" id="os7">
+      <h2 class="ob-q">Which wisdom tradition is yours?</h2>
+      <p class="ob-hint">Choose one — content will be strictly from this tradition only</p>
+      <div class="ob-grid tradition-grid" id="tradition-group">
+        <div class="ob-grid-card" data-trad="hindu"    onclick="obTradSelect(this)"><span class="ob-grid-icon">🪔</span><div class="ob-grid-name">Hindu / Vedantic</div><div class="ob-grid-sub">Gita · Upanishads · Sanskrit</div></div>
+        <div class="ob-grid-card" data-trad="thay"     onclick="obTradSelect(this)"><span class="ob-grid-icon">🌸</span><div class="ob-grid-name">Thich Nhat Hanh</div><div class="ob-grid-sub">Gathas · Interbeing · Plum Village</div></div>
+        <div class="ob-grid-card" data-trad="buddhist" onclick="obTradSelect(this)"><span class="ob-grid-icon">☸</span><div class="ob-grid-name">Buddhist</div><div class="ob-grid-sub">Vipassana · Metta · Pali</div></div>
+        <div class="ob-grid-card" data-trad="universal" onclick="obTradSelect(this)"><span class="ob-grid-icon">✦</span><div class="ob-grid-name">Universal</div><div class="ob-grid-sub">No religion · Science of mind</div></div>
+      </div>
+      <div class="ob-selection-count" id="tradition-count">Choose one tradition</div>
+      <button class="ob-next-btn" onclick="obFinish()">Discover my prakriti ✦</button>
+      <span class="ob-back" onclick="obBack(7)">← Back</span>
+    </div>
+
+    <!-- Result -->
+    <div class="ob-step" id="os-result">
+      <div id="dosha-result-html"></div>
+      <button class="ob-next-btn" onclick="closeOnboard()">Begin my dinacharya ✦</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       HOME SCREEN
+       ═══════════════════════════════════════════════════════ -->
+  <div class="screen active" id="screen-home">
+    <div class="home-hero">
+      <p class="greeting">Suprabhat · सुप्रभात</p>
+      <h1 class="hero-name" id="homeGreeting">Namaste, Friend ✦</h1>
+      <div class="dual-verse" id="daily-verse-area">
+        <div class="dv-card dv-hindu" id="home-verse-card">
+          <div class="dv-label"  id="home-verse-label">Today's teaching</div>
+          <div class="dv-text"   id="home-verse-text">"Karagre vasate Lakshmi — behold your hands at dawn"</div>
+          <div class="dv-source" id="home-verse-source">Traditional morning verse</div>
+        </div>
+      </div>
+      <div class="dosha-pills" id="doshaDisplay"><span class="dpill dp-p">Awaiting your profile</span></div>
+    </div>
+    <div class="om-bell-card">
+      <span class="om-big">ॐ</span>
+      <div class="om-text"><div class="om-title">Hourly mindfulness bell</div><div class="om-sub" id="om-next-time">Tap to unlock and ring</div></div>
+      <button class="om-play-btn" id="omPlayBtn" onclick="handleBellTap()">▶</button>
+    </div>
+    <div class="sound-unlock-notice" id="sound-unlock-notice">🔔 Tap the bell once to enable sound — required by browsers</div>
+    <div class="quick-stats">
+      <div class="qs-card"><div class="qs-num" style="color:var(--sage)" id="stat-done">0</div><div class="qs-label">Done today</div></div>
+      <div class="qs-card"><div class="qs-num" style="color:var(--gd)"   id="stat-streak">🔥 0</div><div class="qs-label">Day streak</div></div>
+      <div class="qs-card"><div class="qs-num" style="color:var(--sf)"   id="stat-bells">0</div><div class="qs-label">Bells heard</div></div>
+      <div class="qs-card"><div class="qs-num" style="color:var(--jade)" id="stat-sessions">0</div><div class="qs-label">Sessions</div></div>
+    </div>
+    <div class="section-row"><span class="section-title">Your features</span><span class="section-note">📵 Works offline</span></div>
+    <div class="feature-grid">
+      <div class="feat-card" onclick="go('dina')"><span class="feat-badge badge-active">Personalised</span><span class="feat-icon">🌿</span><div class="feat-name">My dinacharya</div><div class="feat-sub">Dosha-adaptive · custom slots · reminders</div></div>
+      <div class="feat-card" onclick="go('breathwork')"><span class="feat-badge badge-new">Interactive</span><span class="feat-icon">🌬</span><div class="feat-name">Breathwork</div><div class="feat-sub">Pranayama · box · 4-7-8 sleep</div></div>
+      <div class="feat-card" onclick="go('tracker')"><span class="feat-badge badge-new">New</span><span class="feat-icon">🌀</span><div class="feat-name">Wellness tracker</div><div class="feat-sub">Sleep · mood · energy · mandala</div></div>
+      <div class="feat-card" onclick="go('programme')"><span class="feat-badge badge-active" id="prog-day-badge">Day 0</span><span class="feat-icon">📅</span><div class="feat-name">21-day programme</div><div class="feat-sub">Presence · emotion · purpose</div></div>
+      <div class="feat-card" onclick="go('journal')"><span class="feat-icon">📿</span><div class="feat-name">Journal</div><div class="feat-sub">Tradition-specific prompts · printable</div></div>
+      <div class="feat-card" onclick="go('focus')"><span class="feat-icon">🎯</span><div class="feat-name">Focus blocks</div><div class="feat-sub">All distractions blocked · Om bell</div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       DINACHARYA SCREEN — ENHANCED
+       Two panels: Suggested (AI-guided) + My Schedule (custom)
+       ═══════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen-dina">
+
+    <div class="print-header">
+      <div class="print-title">Ārogya · Personalised Dinacharya</div>
+      <div class="print-sub" id="dina-print-sub">Your dosha · Today's date</div>
+    </div>
+
+    <div class="screen-hero">
+      <p class="eyebrow">Your daily rhythm</p>
+      <h2 class="screen-title" id="dina-title">Dinacharya</h2>
+      <p class="screen-sub"   id="dina-sub">Loading your profile…</p>
+      <div class="dosha-bars">
+        <div class="dbar"><div class="dbar-label">Vata</div><div class="dbar-track"><div class="dbar-fill" id="vata-bar"  style="background:var(--vata-c);width:0%"></div></div></div>
+        <div class="dbar"><div class="dbar-label">Pitta</div><div class="dbar-track"><div class="dbar-fill" id="pitta-bar" style="background:var(--pitta-c);width:0%"></div></div></div>
+        <div class="dbar"><div class="dbar-label">Kapha</div><div class="dbar-track"><div class="dbar-fill" id="kapha-bar" style="background:var(--kapha-c);width:0%"></div></div></div>
+      </div>
+    </div>
+
+    <!-- Mood bar -->
+    <div class="mood-bar">
+      <span class="mood-bar-label">Mood</span>
+      <div class="mood-chips">
+        <div class="mchip active"  onclick="setMood('balanced',this)">Balanced</div>
+        <div class="mchip" onclick="setMood('anxious',this)">Anxious</div>
+        <div class="mchip" onclick="setMood('angry',this)">Irritable</div>
+        <div class="mchip" onclick="setMood('low',this)">Low energy</div>
+        <div class="mchip" onclick="setMood('grief',this)">Heavy-hearted</div>
+        <div class="mchip" onclick="setMood('focused',this)">Focused</div>
+      </div>
+    </div>
+    <div class="mood-notice" id="mood-notice"></div>
+
+    <!-- Tab switcher -->
+    <div class="dina-tab-bar">
+      <button class="dina-tab active" id="tab-suggested" onclick="switchDinaTab('suggested')">
+        <span>🌿</span> Suggested
+      </button>
+      <button class="dina-tab" id="tab-schedule" onclick="switchDinaTab('schedule')">
+        <span>🗓</span> My schedule
+        <span class="dina-tab-count" id="scheduleCount">0</span>
+      </button>
+    </div>
+
+    <!-- ── PANEL A: Suggested ── -->
+    <div id="dina-panel-suggested">
+      <div class="print-row">
+        <button class="print-btn" onclick="printScreen('dina')">🖨 Print</button>
+        <button class="print-btn">📄 PDF</button>
+        <span class="offline-note">📵 Offline</span>
+      </div>
+
+      <!-- Smart defaults (wake/sleep/detox) -->
+      <div class="smart-defaults-strip" id="smartDefaults"></div>
+
+      <!-- Dynamic timeline -->
+      <div class="timeline" id="dina-timeline-container">
+        <div class="timeline-loading">Complete onboarding to see your personalised dinacharya.</div>
+      </div>
+    </div>
+
+    <!-- ── PANEL B: My schedule ── -->
+    <div id="dina-panel-schedule" style="display:none">
+
+      <!-- Day summary bar -->
+      <div class="sched-summary" id="schedSummary"></div>
+
+      <!-- 24h visual bar -->
+      <div class="day-visual-wrap">
+        <div class="day-visual" id="dayVisual"></div>
+        <div class="day-visual-labels">
+          <span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>12 AM</span>
+        </div>
+      </div>
+
+      <!-- Suggest from dosha button -->
+      <button class="suggest-schedule-btn" onclick="applySuggestedSchedule()">
+        🌿 Fill from my dosha profile
+      </button>
+
+      <!-- Activity list -->
+      <div class="sched-list" id="schedList"></div>
+
+      <!-- FAB button -->
+      <div class="fab-wrap">
+        <button class="fab-btn" onclick="openModal(null)">
+          <span class="fab-icon">＋</span> Add activity
+        </button>
+      </div>
+    </div>
+
+  </div><!-- end screen-dina -->
+
+
+  <!-- ═══════════════════════════════════════════════════════
+       BREATHWORK SCREEN
+       ═══════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen-breathwork">
+    <div class="screen-hero"><p class="eyebrow">Pranayama · breathwork</p><h2 class="screen-title">Breath as medicine</h2><p class="screen-sub">Science-backed · dosha-specific · guided</p></div>
+    <div class="breath-tabs">
+      <div class="btab active" onclick="setBrType('nadi',this)"><div class="btab-name">Nadi Shodhana</div><div class="btab-time">5–10 min</div></div>
+      <div class="btab" onclick="setBrType('bhramari',this)"><div class="btab-name">Bhramari</div><div class="btab-time">3–5 min</div></div>
+      <div class="btab" onclick="setBrType('box',this)"><div class="btab-name">Box breathing</div><div class="btab-time">4 min</div></div>
+      <div class="btab" onclick="setBrType('478',this)"><div class="btab-name">4-7-8 Sleep</div><div class="btab-time">Before bed</div></div>
+      <div class="btab" onclick="setBrType('thay',this)"><div class="btab-name">Thay's breath</div><div class="btab-time">Any time</div></div>
+    </div>
+    <div class="breath-center">
+      <div class="breath-ring-wrap">
+        <svg class="breath-svg" viewBox="0 0 200 200"><circle class="br-bg" cx="100" cy="100" r="90"/><circle class="br-prog" cx="100" cy="100" r="90" id="brRing" style="transform:rotate(-90deg);transform-origin:100px 100px"/></svg>
+        <div class="br-center"><div class="br-count" id="brCount">4</div><div class="br-action" id="brAction">INHALE</div><div class="br-cycles" id="brCycles">Cycle 1 of 6</div></div>
+      </div>
+      <div class="breath-pattern"><div class="bp-step bp-in"><span class="bp-num" id="bp-in">4</span>Inhale</div><div class="bp-step bp-hold"><span class="bp-num" id="bp-hold">4</span>Hold</div><div class="bp-step bp-out"><span class="bp-num" id="bp-out">4</span>Exhale</div></div>
+      <p class="breath-instruction" id="brInstr">Alternate nostril breathing.</p>
+      <button class="br-start-btn" id="brBtn" onclick="toggleBreath()">Begin practice</button>
+    </div>
+    <div class="br-benefit" id="brBenefit"><div class="br-benefit-title">🌿 Nadi Shodhana</div>Balances both brain hemispheres. Reduces cortisol within 5 minutes.</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       WELLNESS TRACKER
+       ═══════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen-tracker">
+    <div class="screen-hero"><p class="eyebrow">Srushti mandala</p><h2 class="screen-title">Wellness tracker</h2><p class="screen-sub">Daily check-in · patterns · insights</p></div>
+    <div class="safety-banner" id="safetyBanner"><div class="safety-title">🌸 We notice you've been feeling low</div><div class="safety-text">You don't have to manage this alone.</div><button class="safety-btn" onclick="document.getElementById('safetyBanner').classList.remove('visible')">Explore gentle practices</button></div>
+    <div class="checkin-card"><div class="checkin-head"><div class="checkin-title">Today's check-in</div><div class="checkin-sub">60 seconds · builds your wellness picture</div></div>
+      <div class="checkin-sliders">
+        <div class="ci-row"><span class="ci-label">Sleep</span><input type="range" class="ci-slider" min="1" max="10" value="7" oninput="updateSlider(this)"/><span class="ci-val">7</span></div>
+        <div class="ci-row"><span class="ci-label">Energy</span><input type="range" class="ci-slider" min="1" max="10" value="6" oninput="updateSlider(this)"/><span class="ci-val">6</span></div>
+        <div class="ci-row"><span class="ci-label">Mood</span><input type="range" class="ci-slider" min="1" max="10" value="7" oninput="updateSlider(this); checkSafety(this.value)"/><span class="ci-val">7</span></div>
+        <div class="ci-row"><span class="ci-label">Digestion</span><input type="range" class="ci-slider" min="1" max="10" value="8" oninput="updateSlider(this)"/><span class="ci-val">8</span></div>
+        <div class="ci-row"><span class="ci-label">Stress</span><input type="range" class="ci-slider" min="1" max="10" value="4" oninput="updateSlider(this)"/><span class="ci-val">4</span></div>
+      </div>
+      <button class="checkin-submit">Save today's check-in ✦</button>
+    </div>
+    <div class="mandala-card"><div class="mandala-title">This week's Srushti chart</div><div class="mandala-sub">Your inner weather</div>
+      <div class="radar-bars">
+        <div class="rbar-row"><span class="rbar-label">Mind</span><div class="rbar-track"><div class="rbar-fill rf-mind" style="width:72%"></div></div><span class="rbar-pct">72%</span></div>
+        <div class="rbar-row"><span class="rbar-label">Body</span><div class="rbar-track"><div class="rbar-fill rf-body" style="width:65%"></div></div><span class="rbar-pct">65%</span></div>
+        <div class="rbar-row"><span class="rbar-label">Energy</span><div class="rbar-track"><div class="rbar-fill rf-energy" style="width:80%"></div></div><span class="rbar-pct">80%</span></div>
+        <div class="rbar-row"><span class="rbar-label">Sleep</span><div class="rbar-track"><div class="rbar-fill rf-sleep" style="width:58%"></div></div><span class="rbar-pct">58%</span></div>
+        <div class="rbar-row"><span class="rbar-label">Digestion</span><div class="rbar-track"><div class="rbar-fill rf-digest" style="width:74%"></div></div><span class="rbar-pct">74%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       21-DAY PROGRAMME
+       ═══════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen-programme">
+    <div class="screen-hero"><p class="eyebrow">Structured journey</p><h2 class="screen-title">21-day programme</h2><p class="screen-sub" id="prog-sub">Presence → Emotion → Connection → Purpose</p></div>
+    <div id="programme-content">
+      <div class="week-tabs">
+        <div class="wtab active" onclick="showWeek('1',this)"><div class="wtab-num">Week 1</div><div class="wtab-name">Foundation</div></div>
+        <div class="wtab" onclick="showWeek('2',this)"><div class="wtab-num">Week 2</div><div class="wtab-name">Emotion</div></div>
+        <div class="wtab" onclick="showWeek('3',this)"><div class="wtab-num">Week 3</div><div class="wtab-name">Purpose</div></div>
+      </div>
+      <div id="week-panels"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       JOURNAL SCREEN
+       ═══════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen-journal">
+    <div class="print-header"><div class="print-title">Ārogya · Journal</div><div class="print-sub">Your daily reflection</div></div>
+    <div class="screen-hero"><p class="eyebrow">Svadhyaya · self-study</p><h2 class="screen-title">Your journal</h2><p class="screen-sub" id="journal-tradition-label">Tradition-filtered prompts</p></div>
+    <div class="mood-section">
+      <div class="mood-section-label">How are you right now?</div>
+      <div class="mood-grid">
+        <div class="mood-btn" onclick="selectMood(this)"><span class="mood-emoji">🌱</span><span class="mood-label">Hopeful</span></div>
+        <div class="mood-btn" onclick="selectMood(this)"><span class="mood-emoji">☀</span><span class="mood-label">Calm</span></div>
+        <div class="mood-btn" onclick="selectMood(this)"><span class="mood-emoji">🌊</span><span class="mood-label">Anxious</span></div>
+        <div class="mood-btn" onclick="selectMood(this)"><span class="mood-emoji">🍂</span><span class="mood-label">Heavy</span></div>
+        <div class="mood-btn" onclick="selectMood(this)"><span class="mood-emoji">🔥</span><span class="mood-label">Energised</span></div>
+        <div class="mood-btn" onclick="selectMood(this)"><span class="mood-emoji">🌫</span><span class="mood-label">Foggy</span></div>
+        <div class="mood-btn" onclick="selectMood(this)"><span class="mood-emoji">💧</span><span class="mood-label">Sad</span></div>
+        <div class="mood-btn" onclick="selectMood(this)"><span class="mood-emoji">🌸</span><span class="mood-label">Grateful</span></div>
+        <div class="mood-btn" onclick="selectMood(this)"><span class="mood-emoji">🕯</span><span class="mood-label">Present</span></div>
+        <div class="mood-btn" onclick="selectMood(this)"><span class="mood-emoji">⚡</span><span class="mood-label">Restless</span></div>
+      </div>
+    </div>
+    <div class="journal-section">
+      <div class="section-row"><span class="section-title">Today's prompts</span></div>
+      <div id="journal-prompts-area"><div class="timeline-loading">Loading your tradition-specific prompts…</div></div>
+    </div>
+    <div class="journal-print-row">
+      <button class="print-btn" onclick="printScreen('journal')">🖨 Print journal</button>
+      <button class="print-btn">📄 Save as PDF</button>
+    </div>
+    <div class="section-row"><span class="section-title">Past entries</span><span class="section-action">See all</span></div>
+    <div class="entries-list" id="past-entries-list"><div class="timeline-loading" style="padding:12px 22px;font-size:12px;color:var(--mu)">No entries yet.</div></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       FOCUS SCREEN
+       ═══════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen-focus">
+    <div class="screen-hero"><p class="eyebrow">Mindful work block</p><h2 class="screen-title">Deep focus</h2><p class="screen-sub">All notifications blocked · Om bell at close</p></div>
+    <div class="quick-stats" style="padding-top:14px">
+      <div class="qs-card"><div class="qs-num" style="color:var(--sf)" id="focus-sessions">0</div><div class="qs-label">Sessions today</div></div>
+      <div class="qs-card"><div class="qs-num" style="color:var(--sf)" id="focus-mins">0</div><div class="qs-label">Focus mins</div></div>
+      <div class="qs-card"><div class="qs-num" style="color:var(--gd)" id="focus-streak">🔥 0</div><div class="qs-label">Streak</div></div>
+    </div>
+    <div class="focus-intention-wrap"><div class="focus-intention-label">Intention for this block</div><textarea class="focus-intention" id="intentionText" placeholder="What receives your full attention now?"></textarea></div>
+    <div class="timer-wrap"><div class="timer-ring-wrap"><svg class="timer-svg" viewBox="0 0 188 188"><circle class="tr-bg" cx="94" cy="94" r="85"/><circle class="tr-prog" cx="94" cy="94" r="85" id="tRing"/></svg><div class="timer-center"><div class="timer-display" id="tDisp">25:00</div><div class="timer-phase" id="tPh">FOCUS</div><div class="timer-session" id="tSs">Session 1 of 4</div></div></div></div>
+    <div class="dur-row">
+      <div class="dur-chip" onclick="setDuration(15,this)">15 min</div>
+      <div class="dur-chip active" onclick="setDuration(25,this)">25 min</div>
+      <div class="dur-chip" onclick="setDuration(45,this)">45 min</div>
+      <div class="dur-chip" onclick="setDuration(90,this)">90 min</div>
+    </div>
+    <div class="timer-controls">
+      <button class="timer-aux" onclick="resetTimer()">↺</button>
+      <button class="timer-play" id="tPlay" onclick="toggleTimer()">▶</button>
+      <button class="timer-aux" onclick="skipSession()">⏭</button>
+    </div>
+    <div class="focus-settings">
+      <div class="settings-label">Block settings</div>
+      <div class="settings-card">
+        <div class="setting-row"><div class="setting-left"><span class="setting-icon">🔕</span><div><div class="setting-title">Block all notifications</div><div class="setting-sub">No messages, calls or alerts</div></div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="setting-row"><div class="setting-left"><span class="setting-icon">🌐</span><div><div class="setting-title">Block social apps</div></div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="setting-row"><div class="setting-left"><span class="setting-icon">📞</span><div><div class="setting-title">Emergency calls only</div></div></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+      <div class="settings-label">Session end sound</div>
+      <div class="settings-card">
+        <div class="sound-chips">
+          <div class="sound-chip"        onclick="selectSound('bell',this)"><span class="sound-icon">🔔</span><div class="sound-name">Bell</div></div>
+          <div class="sound-chip active"  onclick="selectSound('om',this)"><span class="sound-icon" style="font-family:'Noto Sans Devanagari'">ॐ</span><div class="sound-name">Om</div></div>
+          <div class="sound-chip"        onclick="selectSound('both',this)"><span class="sound-icon">🔔✦</span><div class="sound-name">Both</div></div>
+          <div class="sound-chip"        onclick="selectSound('silent',this)"><span class="sound-icon">○</span><div class="sound-name">Silent</div></div>
+        </div>
+        <div class="setting-row"><div class="setting-left"><span class="setting-icon">🌬</span><div><div class="setting-title">3-breath break prompt</div></div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nav-home"       onclick="go('home')"><span class="nav-icon">🏠</span><span class="nav-label">Home</span></button>
+    <button class="nav-btn"        id="nav-dina"       onclick="go('dina')"><span class="nav-icon">🌿</span><span class="nav-label">Dinacharya</span></button>
+    <button class="nav-btn"        id="nav-breathwork" onclick="go('breathwork')"><span class="nav-icon">🌬</span><span class="nav-label">Breathe</span></button>
+    <button class="nav-btn"        id="nav-tracker"    onclick="go('tracker')"><span class="nav-icon">🌀</span><span class="nav-label">Wellness</span></button>
+    <button class="nav-btn"        id="nav-programme"  onclick="go('programme')"><span class="nav-icon">📅</span><span class="nav-label">21 Days</span></button>
+    <button class="nav-btn"        id="nav-journal"    onclick="go('journal')"><span class="nav-icon">📿</span><span class="nav-label">Journal</span></button>
+    <button class="nav-btn"        id="nav-focus"      onclick="go('focus')"><span class="nav-icon">🎯</span><span class="nav-label">Focus</span></button>
+  </nav>
+
+</div><!-- .app -->
+<script src="script.js"></script>
+</body>
+</html>
+
+    <script src="/script.js"></script>
+  </body>
+
+</html>
